@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D GLB Point Cloud - Smooth & Organic</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: white; }
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: white; /* Ensures the background is white */
+        }
         canvas { display: block; }
     </style>
 </head>
@@ -23,12 +27,12 @@
         // Renderer setup
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setClearColor(0xffffff);
+        renderer.setClearColor(0xffffff); // White background
         document.body.appendChild(renderer.domElement);
 
-        // Create a red sphere that follows the mouse
+        // Create a black sphere that follows the mouse
         const sphereGeometry = new THREE.SphereGeometry(3, 16, 16);
-        const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 }); // Black sphere
         const mouseSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
         scene.add(mouseSphere);
 
@@ -60,7 +64,7 @@
             geometry.setAttribute("velocity", new THREE.BufferAttribute(velocities, 3));
 
             // Material for point cloud
-            const material = new THREE.PointsMaterial({ color: 0x0000ff, size: 0.5 });
+            const material = new THREE.PointsMaterial({ color: 0x0000ff, size: 0.5 }); // Blue points
 
             // Create point cloud
             pointCloud = new THREE.Points(geometry, material);
@@ -116,7 +120,7 @@
                 const velocities = pointCloud.geometry.attributes.velocity.array;
                 const mousePos = getMousePositionInWorld();
 
-                // Move the red sphere to match the mouse position
+                // Move the black sphere to match the mouse position
                 mouseSphere.position.copy(mousePos);
 
                 for (let i = 0; i < positions.length; i += 3) {
