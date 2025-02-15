@@ -3,59 +3,172 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Blue Cube</title>
+    <title>3D GLB Point Cloud - Smooth & Organic</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: white; }
+        body { margin: 0; overflow: hidden; background-color: black; }
         canvas { display: block; }
     </style>
 </head>
 <body>
+    <!-- Load Three.js and GLTFLoader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
+
     <script>
-        // Initialize scene, camera, and renderer
+        // Scene setup
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
+        camera.position.z = 85;  // Adjusted for better visibility
+
+        // Renderer setup
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Set background color
-        renderer.setClearColor(0xffffff, 1);
+        // Create a red sphere that follows the mouse
+        const sphereGeometry = new THREE.SphereGeometry(3, 16, 16);
+        const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const mouseSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+        scene.add(mouseSphere);
 
-        // Create a blue cube
-        const geometry = new THREE.BoxGeometry();
-        const material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-        const cube = new THREE.Mesh(geometry, material);
-        scene.add(cube);
+        // Load the GLB file
+        const glbLoader = new THREE.GLTFLoader();
+        let pointCloud, originalPositions;
 
-        camera.position.z = 5;
+        glbLoader.load("test.glb", (gltf) => {
+            const model = gltf.scene;
+            const vertices = [];
 
-        // Mouse tracking
-        const mouse = { x: 0, y: 0 };
+            // Extract vertex positions from the GLB mesh
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    const position = child.geometry.attributes.position;
+                    for (let i = 0; i < position.count; i++) {
+                        vertices.push(position.getX(i) * 0.1, position.getY(i) * 0.1, position.getZ(i) * 0.1);
+                    }
+                }
+            });
 
-        document.addEventListener('mousemove', (event) => {
+            // Convert positions to Float32Array
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(vertices);
+            originalPositions = new Float32Array(vertices); // Store original positions
+            const velocities = new Float32Array(vertices.length).fill(0);
+
+            geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute("velocity", new THREE.BufferAttribute(velocities, 3));
+
+            // Material for point cloud
+            const material = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.5 });
+
+            // Create point cloud
+            pointCloud = new THREE.Points(geometry, material);
+            scene.add(pointCloud);
+        });
+
+        // Mouse interaction variables
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+        const radius = 30;  // Bigger falloff for a more natural effect
+        const displacementStrength = 0.5; // Softer, smoother movement
+        const returnSpeed = 0.005; // Slower return for slow-mo effect
+        const friction = 0.99; // High damping for smooth glide
+
+        // **New Adjustable Curl Noise Variables**
+        let curlRoughness = 0.2; // Controls how strong the curl displacement is
+        let curlFrequency = 2.0; // Controls how detailed the curl pattern is
+
+        // Track mouse movement
+        window.addEventListener("mousemove", (event) => {
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
         });
 
+        // Convert mouse position to world space
+        function getMousePositionInWorld() {
+            raycaster.setFromCamera(mouse, camera);
+            const intersection = new THREE.Vector3();
+            raycaster.ray.intersectPlane(plane, intersection);
+            return intersection;
+        }
+
+        // **New Curl Noise Function (Smoother & Adjustable)**
+        function smoothCurlNoise(x, y) {
+            return {
+                x: Math.sin(y * curlFrequency) * curlRoughness + Math.cos(x * curlFrequency * 0.5) * (curlRoughness * 0.5),
+                y: Math.cos(x * curlFrequency) * curlRoughness + Math.sin(y * curlFrequency * 0.5) * (curlRoughness * 0.5),
+                z: 0 // No movement along Z
+            };
+        }
+
+        // **Helper function to smoothly interpolate between values (removes bouncing)**
+        function lerp(a, b, t) {
+            return a + (b - a) * t;
+        }
+
         // Animation loop
         function animate() {
             requestAnimationFrame(animate);
+            if (pointCloud) {
+                const positions = pointCloud.geometry.attributes.position.array;
+                const velocities = pointCloud.geometry.attributes.velocity.array;
+                const mousePos = getMousePositionInWorld();
 
-            // Rotate cube to face the mouse direction
-            cube.rotation.y = mouse.x * Math.PI;
-            cube.rotation.x = mouse.y * Math.PI;
+                // Move the red sphere to match the mouse position
+                mouseSphere.position.copy(mousePos);
 
+                for (let i = 0; i < positions.length; i += 3) {
+                    const px = positions[i];
+                    const py = positions[i + 1];
+
+                    const ox = originalPositions[i];
+                    const oy = originalPositions[i + 1];
+                    const oz = originalPositions[i + 2];
+
+                    // Compute distance to mouse position (Ignore Z)
+                    const distance = Math.sqrt((px - mousePos.x) ** 2 + (py - mousePos.y) ** 2);
+
+                    if (distance < radius) {
+                        // Apply new smooth falloff effect
+                        const falloff = Math.pow(1 - (distance / radius), 2); // Smoother falloff
+                        const noise = smoothCurlNoise(px, py);
+                        
+                        velocities[i] += noise.x * falloff * displacementStrength;
+                        velocities[i + 1] += noise.y * falloff * displacementStrength;
+                    } else {
+                        // **New: Use LERP instead of direct velocity updates**
+                        positions[i] = lerp(positions[i], ox, returnSpeed);
+                        positions[i + 1] = lerp(positions[i + 1], oy, returnSpeed);
+                        positions[i + 2] = lerp(positions[i + 2], oz, returnSpeed);
+                    }
+
+                    // Apply movement
+                    positions[i] += velocities[i];
+                    positions[i + 1] += velocities[i + 1];
+                    positions[i + 2] += velocities[i + 2];
+
+                    // Apply high friction for slow, smooth motion
+                    velocities[i] *= friction;
+                    velocities[i + 1] *= friction;
+                    velocities[i + 2] *= friction;
+                }
+
+                pointCloud.geometry.attributes.position.needsUpdate = true;
+                pointCloud.rotation.y += 0.001; // Even slower rotation
+            }
             renderer.render(scene, camera);
         }
+
         animate();
 
-        // Handle window resize
-        window.addEventListener('resize', () => {
+        // Handle window resizing
+        window.addEventListener("resize", () => {
             renderer.setSize(window.innerWidth, window.innerHeight);
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
         });
+
     </script>
 </body>
 </html>
