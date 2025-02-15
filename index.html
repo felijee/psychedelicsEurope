@@ -23,6 +23,7 @@
         // Renderer setup
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0xffffff);
         document.body.appendChild(renderer.domElement);
 
         // Create a red sphere that follows the mouse
