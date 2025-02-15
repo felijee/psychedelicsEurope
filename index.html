@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D GLB Point Cloud - Smooth & Organic</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: black; }
+        body { margin: 0; overflow: hidden; background-color: white; }
         canvas { display: block; }
     </style>
 </head>
@@ -27,7 +27,7 @@
 
         // Create a red sphere that follows the mouse
         const sphereGeometry = new THREE.SphereGeometry(3, 16, 16);
-        const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
         const mouseSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
         scene.add(mouseSphere);
 
@@ -59,7 +59,7 @@
             geometry.setAttribute("velocity", new THREE.BufferAttribute(velocities, 3));
 
             // Material for point cloud
-            const material = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.5 });
+            const material = new THREE.PointsMaterial({ color: 0x0000ff, size: 0.5 });
 
             // Create point cloud
             pointCloud = new THREE.Points(geometry, material);
